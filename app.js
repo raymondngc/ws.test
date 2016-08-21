@@ -40,6 +40,19 @@ var WebSocketServer = require('ws').Server,
 
 var wsList = {};
 
+function sendMessage(msg, userIDSend) {
+    if (msg.hasOwnProperty('toUser')) {
+        console.log('user is ', msg.toUser);
+        if (!(_.isNil(wsList[msg.toUser]))) {
+            console.log("sending message to " + msg.toUser);
+            var msgSend = {};
+            msgSend.fromUser = userIDSend;
+            msgSend.message = msg.message
+            wsList[msg.toUser].send(JSON.stringify(msgSend));
+        }
+    }
+}
+
 wss.on('connection', function(ws) {
     console.log('wss client connected');
     var parsed_cookie = cookie.parse(ws.upgradeReq.headers.cookie);
@@ -51,17 +64,9 @@ wss.on('connection', function(ws) {
     ws.on('message', function(msgStr) {
         console.log('msg %j', msgStr);
         var msg = JSON.parse(msgStr);
-        if (msg.hasOwnProperty('toUser')) {
-            console.log('user is ', msg.toUser);
-            if (!(_.isNil(wsList[msg.toUser]))) {
-                console.log("sending message to " + msg.toUser);
-                var userIDSend = _.findKey(wsList, ws);
-                var msgSend = {};
-                msgSend.fromUser = userIDSend;
-                msgSend.message = msg.message
-                wsList[msg.toUser].send(JSON.stringify(msgSend));
-            }
-        }
+        var userIDSend = _.findKey(wsList, ws);
+
+        sendMessage(msg, userIDSend)
     });
 
     ws.onclose = function(e) {
@@ -123,6 +128,19 @@ app.get('/secured', function(req, res) {
         });
     }
 });
+
+
+
+// Restful API
+app.post('/sendMessage', function(req, res) {
+    console.log("sendMessage Post request received ....");
+    console.log("sendMessage req  %j ", req.body);
+    console.log("sendMessage from user: " + req.body.fromUser);
+    sendMessage(req.body, req.body.fromUser)
+});
+
+
+
 
 app.set('port', process.env.PORT || 3000);
 var server = app.listen(app.get('port'), function() {
